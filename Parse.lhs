@@ -5,9 +5,7 @@
 > parser rule text = parse rule "(source)" text
 
 > parseStop :: Parsec String () Process
-> parseStop = do
->     string "Stop"
->     return Stop
+> parseStop = string "Stop" >> return Stop
 
 > parseEvent :: Parsec String () Event
 > parseEvent = (parseIntegral >>= return . NumEvent)
@@ -20,8 +18,13 @@
 >     process <- parseProcess
 >     return (Prefix event process)
 
+> discardBrackets :: Parsec String () Process -> Parsec String () Process
+> discardBrackets rule = (try $ do 
+>                                string "("
+>                                p <- rule
+>                                string ")"
+>                                return p)
+>                    <|> rule
+
 > parseProcess :: Parsec String () Process
-> parseProcess = do
->     p <-choice [parsePrefix, parseStop]
->     eof
->     return p
+> parseProcess = discardBrackets $ choice [parsePrefix, parseStop]
