@@ -32,10 +32,10 @@
 >     show = pShow
 
 > pShow :: Process -> String
->     show Stop = "Stop"
->     show (Prefix e p) = show e ++ " -> " ++ bracket p
->     show (Abs s p) = "\\" ++ s ++ "." ++ bracket p
->     show (Ident s) = s
+> pShow Stop = "Stop"
+> pShow (Prefix e p) = show e ++ " -> " ++ bracket p
+> pShow (Abs s p) = "\\" ++ s ++ "." ++ bracket p
+> pShow (Ident s) = s
 
 > bracket :: Process -> String
 > bracket Stop = pShow Stop

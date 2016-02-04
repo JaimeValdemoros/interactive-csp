@@ -19,19 +19,33 @@
 > parseEv :: String -> Maybe Event
 > parseEv = eitherToMaybe . parser parseEvent
 
-> parseStop :: Parsec String () Process
-> parseStop = string "Stop" >> return Stop
-
 > parseEvent :: Parsec String () Event
 > parseEvent = (parseIntegral >>= return . NumEvent)
 >          <|> (many1 lower >>= return . StringEvent)
 
+> parseStop :: Parsec String () Process
+> parseStop = string "Stop" >> return Stop
+
 > parsePrefix :: Parsec String () Process
-> parsePrefix = do
+> parsePrefix = try $ do
 >     event <- parseEvent
 >     spaces >> string "->" >> spaces
 >     process <- parseProcess
 >     return (Prefix event process)
+
+> parseAbs :: Parsec String () Process
+> parseAbs = try $ do
+>                   char '\\'
+>                   first <- oneOf ['A'..'Z']
+>                   string "."
+>                   p <- parseProcess
+>                   return (Abs [first] p)
+
+> parseIdent :: Parsec String () Process
+> parseIdent = try $ do
+>                     first <- oneOf ['A'..'Z']
+>                     rest <- many letter
+>                     return (Ident (first:rest))
 
 > discardBrackets :: Parsec String () Process -> Parsec String () Process
 > discardBrackets rule = (try $ do 
@@ -42,4 +56,7 @@
 >                    <|> rule
 
 > parseProcess :: Parsec String () Process
-> parseProcess = discardBrackets $ choice [parsePrefix, parseStop]
+> parseProcess = do 
+>                 p <- discardBrackets $ choice [parsePrefix, parseStop, parseAbs, parseIdent]
+>                 eof
+>                 return p
