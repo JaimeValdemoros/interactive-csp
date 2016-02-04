@@ -16,6 +16,10 @@
 > data Process = Stop                      -- STOP
 >              | Prefix Event Process      -- a -> P
 
+> instance Eq Process where
+>     (==) Stop Stop = True
+>     (==) _ _ = False
+
 > instance Show Process where
 >     show Stop = "Stop"
 >     show (Prefix e Stop) = show e ++ " -> Stop"
