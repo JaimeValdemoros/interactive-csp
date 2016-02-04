@@ -29,12 +29,19 @@
 >              | Ident Ident               -- 'Count'
 
 > instance Show Process where
+>     show = pShow
+
+> pShow :: Process -> String
 >     show Stop = "Stop"
->     show (Prefix e Stop) = show e ++ " -> Stop"
->     show (Prefix e (Ident s)) = show e ++ " -> " ++ s
->     show (Prefix e p) = show e ++ " -> (" ++ show p ++ ")"
->     show (Abs s p) = "\\" ++ s ++ ".(" ++ show p  ++ ")"
+>     show (Prefix e p) = show e ++ " -> " ++ bracket p
+>     show (Abs s p) = "\\" ++ s ++ "." ++ bracket p
 >     show (Ident s) = s
+
+> bracket :: Process -> String
+> bracket Stop = pShow Stop
+> bracket p@(Prefix _ _) = "(" ++ pShow p ++ ")"
+> bracket a@(Abs _ _) = pShow a
+> bracket i@(Ident _) = pShow i
 
 > runEvent :: Event -> Process -> Context -> Maybe (Process, Context)
 > runEvent e Stop _ = Nothing
