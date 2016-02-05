@@ -14,7 +14,7 @@
 > eitherToMaybe (Right x) = Just x
 
 > parseProc :: String -> Maybe Process
-> parseProc = eitherToMaybe . parser parseProcess
+> parseProc = eitherToMaybe . parser (do {p <- parseProcess; eof; return p})
 
 > parseEv :: String -> Maybe Event
 > parseEv = eitherToMaybe . parser parseEvent
@@ -35,9 +35,9 @@
 
 > parseAbs :: Parsec String () Process
 > parseAbs = try $ do
->                   char '\\'
+>                   char '$'
 >                   first <- oneOf ['A'..'Z']
->                   string "."
+>                   char '$'
 >                   p <- parseProcess
 >                   return (Abs [first] p)
 
@@ -47,7 +47,7 @@
 >                     rest <- many letter
 >                     return (Ident (first:rest))
 
-> discardBrackets :: Parsec String () Process -> Parsec String () Process
+> discardBrackets :: Parsec String st o -> Parsec String st o
 > discardBrackets rule = (try $ do 
 >                                string "("
 >                                p <- rule
@@ -56,7 +56,4 @@
 >                    <|> rule
 
 > parseProcess :: Parsec String () Process
-> parseProcess = do 
->                 p <- discardBrackets $ choice [parsePrefix, parseStop, parseAbs, parseIdent]
->                 eof
->                 return p
+> parseProcess = try $ discardBrackets $ choice [parsePrefix, parseStop, parseAbs, parseIdent]

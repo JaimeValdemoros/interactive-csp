@@ -1,6 +1,10 @@
 > module Process
 >     ( Event(..)
 >     , Process(..)
+>     , Context
+>     , getProc
+>     , addToContext
+>     , newContext
 >     , runEvent
 >     ) where
 
@@ -17,11 +21,14 @@
 > type Ident = String
 > type Context = M.Map Ident Process
 
-> getProc :: Ident -> Context -> Maybe Process
-> getProc = M.lookup
+> getProc :: Context -> Ident -> Maybe Process
+> getProc = flip M.lookup
 
 > addToContext :: Ident -> Process -> Context -> Context
 > addToContext = M.insert
+
+> newContext :: Context
+> newContext = M.empty
 
 > data Process = Stop                      -- STOP
 >              | Prefix Event Process      -- a -> P
@@ -43,11 +50,11 @@
 > bracket a@(Abs _ _) = pShow a
 > bracket i@(Ident _) = pShow i
 
-> runEvent :: Event -> Process -> Context -> Maybe (Process, Context)
-> runEvent e Stop _ = Nothing
-> runEvent e (Prefix e2 p) c = if (e == e2) 
->                               then Just (p,c)
+> runEvent :: Context -> Process -> Event -> Maybe (Process, Context)
+> runEvent _ Stop _ = Nothing
+> runEvent c (Prefix e p) e2 = if (e == e2) 
+>                               then Just (p, c)
 >                               else Nothing
-> runEvent e (Ident s) c = getProc s c >>= (\p -> runEvent e p c)
-> runEvent e (Abs s p) c = runEvent e p (addToContext s p c)
+> runEvent c (Ident s) e = getProc c s >>= (\p -> runEvent c p e)
+> runEvent c (Abs s p) e = runEvent (addToContext s p c) p e
 
