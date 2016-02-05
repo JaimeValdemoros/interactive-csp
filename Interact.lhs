@@ -1,22 +1,38 @@
 > import Process
 > import Parse
+> import System.Console.Haskeline
 
 > interactProc :: IO ()
 > interactProc = do
 >     putStrLn "Type in a process definition"
->     s <- getLine
->     case parseProc s of
+>     minput <- runInputT defaultSettings $ getInputLine "> "
+>     case minput of
 >         Nothing -> return ()
->         Just p -> iterateProc newContext p
+>         Just s -> case parseProc s of
+>                       Nothing -> return ()
+>                       Just p -> iterateProc newContext p True
 
-> iterateProc :: Context -> Process -> IO ()
-> iterateProc _ Stop = putStrLn (show Stop)
-> iterateProc c p = do
+> isIdent :: Process -> Bool
+> isIdent (Ident _) = True
+> isIdent _ = False
+
+> iterateProc :: Context -> Process -> Bool -> IO ()
+> iterateProc _ Stop _ = putStrLn (show Stop)
+> iterateProc c p allowError = do
 >     putStrLn ("Current process state: " ++ show p)
->     putStr "Type in an event: "
->     s <- getLine
->     if (s == "") then return () else
->       case (parseEv s >>= runEvent c p) of
->           Nothing -> putStrLn "Malformed input or invalid event" >> iterateProc c p
->           Just (p', c') -> iterateProc c' p'
+>     putStrLn "Type in an event: "
+>     minput <- runInputT defaultSettings $ getInputLine "> "
+>     case interpretString c p minput of
+>         Nothing -> putStrLn "Malformed input or invalid event" >> 
+>                        if allowError then iterateProc c p False else return ()
+>         Just (p', c') -> iterateProc c' p' True
+
+> interpretString :: Context -> Process -> Maybe String
+>                 -> Maybe (Process, Context)
+> interpretString c p minput = do
+>                 s <- minput
+>                 if (null s) && isIdent p 
+>                 then expandProc c p >>= (\p' -> return (p',c))
+>                 else (parseEv s >>= runEvent c p)
+
 

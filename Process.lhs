@@ -2,7 +2,7 @@
 >     ( Event(..)
 >     , Process(..)
 >     , Context
->     , getProc
+>     , expandProc
 >     , addToContext
 >     , newContext
 >     , runEvent
@@ -50,11 +50,15 @@
 > bracket a@(Abs _ _) = pShow a
 > bracket i@(Ident _) = pShow i
 
+> expandProc :: Context -> Process -> Maybe Process
+> expandProc c (Ident s) = getProc c s
+> expandProc _ p = Just p
+
 > runEvent :: Context -> Process -> Event -> Maybe (Process, Context)
 > runEvent _ Stop _ = Nothing
 > runEvent c (Prefix e p) e2 = if (e == e2) 
 >                               then Just (p, c)
 >                               else Nothing
-> runEvent c (Ident s) e = getProc c s >>= (\p -> runEvent c p e)
+> runEvent c p@(Ident _) e = expandProc c p >>= \p2 -> 
+>                                runEvent c p2 e 
 > runEvent c (Abs s p) e = runEvent (addToContext s p c) p e
-
