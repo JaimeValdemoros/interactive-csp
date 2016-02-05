@@ -37,7 +37,7 @@
 > parseAbs = try $ do
 >                   char '$'
 >                   first <- oneOf ['A'..'Z']
->                   char '$'
+>                   char '.'
 >                   p <- parseProcess
 >                   return (Abs [first] p)
 
