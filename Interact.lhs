@@ -10,29 +10,26 @@
 >         Nothing -> return ()
 >         Just s -> case parseProc s of
 >                       Nothing -> return ()
->                       Just p -> iterateProc newContext p True
+>                       Just p -> iterateProc (newContext, p) True
 
-> isIdent :: Process -> Bool
+> isIdent :: ProcessDef -> Bool
 > isIdent (Ident _) = True
 > isIdent _ = False
 
-> iterateProc :: Context -> Process -> Bool -> IO ()
-> iterateProc _ Stop _ = putStrLn (show Stop)
-> iterateProc c p allowError = do
+> iterateProc :: Process -> Bool -> IO ()
+> iterateProc (_,Stop) _ = putStrLn (show Stop)
+> iterateProc (c,p) allowError = do
 >     putStrLn ("Current process state: " ++ show p)
 >     putStrLn "Type in an event: "
 >     minput <- runInputT defaultSettings $ getInputLine "> "
->     case interpretString c p minput of
+>     case interpretString (c,p) minput of
+>         Just (c',p') -> iterateProc (c',p') True
 >         Nothing -> putStrLn "Malformed input or invalid event" >> 
->                        if allowError then iterateProc c p False else return ()
->         Just (p', c') -> iterateProc c' p' True
+>                        if allowError then iterateProc (c,p) False else return ()
 
-> interpretString :: Context -> Process -> Maybe String
->                 -> Maybe (Process, Context)
-> interpretString c p minput = do
+> interpretString :: Process -> Maybe String -> Maybe Process
+> interpretString (c,p) minput = do
 >                 s <- minput
 >                 if (null s) && isIdent p 
->                 then expandProc c p >>= (\p' -> return (p',c))
->                 else (parseEv s >>= runEvent c p)
-
-
+>                 then expandProc (c,p)
+>                 else parseEv s >>= runEvent (c,p)

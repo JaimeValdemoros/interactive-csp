@@ -1,14 +1,16 @@
 > module Process
 >     ( Event(..)
->     , Process(..)
+>     , ProcessDef(..)
+>     , Process
 >     , Context
->     , expandProc
 >     , addToContext
 >     , newContext
+>     , expandProc
 >     , runEvent
 >     ) where
 
 > import qualified Data.Map.Lazy as M
+> import Data.List(elem)
 
 > data Event = StringEvent String 
 >            | NumEvent Integer 
@@ -19,46 +21,61 @@
 >     show (NumEvent i) = show i
 
 > type Ident = String
-> type Context = M.Map Ident Process
 
-> getProc :: Context -> Ident -> Maybe Process
-> getProc = flip M.lookup
+> data ProcessDef = Stop                      -- STOP
+>                 | Prefix Event ProcessDef      -- a -> P
+>                 | Abs Ident ProcessDef         -- \p . P
+>                 | Ident Ident               -- 'Count'
+>                 | NormalProc [Event] ProcessDef
 
-> addToContext :: Ident -> Process -> Context -> Context
-> addToContext = M.insert
+> instance Show ProcessDef where
+>     show = (++) "Proc " . pShow
 
-> newContext :: Context
-> newContext = M.empty
-
-> data Process = Stop                      -- STOP
->              | Prefix Event Process      -- a -> P
->              | Abs Ident Process         -- \p . P
->              | Ident Ident               -- 'Count'
-
-> instance Show Process where
->     show = pShow
-
-> pShow :: Process -> String
+> pShow :: ProcessDef -> String
 > pShow Stop = "Stop"
-> pShow (Prefix e p) = show e ++ " -> " ++ bracket p
+> pShow (Prefix e p) = show e ++ 
+>                      " -> " ++ 
+>                      case p of
+>                         (Prefix _ _) -> pShow p
+>                         _            -> bracket p
 > pShow (Abs s p) = "\\" ++ s ++ "." ++ bracket p
 > pShow (Ident s) = s
 
-> bracket :: Process -> String
+> bracket :: ProcessDef -> String
 > bracket Stop = pShow Stop
 > bracket p@(Prefix _ _) = "(" ++ pShow p ++ ")"
 > bracket a@(Abs _ _) = pShow a
 > bracket i@(Ident _) = pShow i
 
-> expandProc :: Context -> Process -> Maybe Process
-> expandProc c (Ident s) = getProc c s
-> expandProc _ p = Just p
+> type Context = M.Map Ident ProcessDef
 
-> runEvent :: Context -> Process -> Event -> Maybe (Process, Context)
-> runEvent _ Stop _ = Nothing
-> runEvent c (Prefix e p) e2 = if (e == e2) 
->                               then Just (p, c)
->                               else Nothing
-> runEvent c p@(Ident _) e = expandProc c p >>= \p2 -> 
->                                runEvent c p2 e 
-> runEvent c (Abs s p) e = runEvent (addToContext s p c) p e
+> lookupProc :: Context -> Ident -> Maybe ProcessDef
+> lookupProc = flip M.lookup
+
+> expandProc :: Process -> Maybe Process
+> expandProc (c, Ident s) = lookupProc c s >>= (\p -> return (c,p))
+> expandProc p = Just p
+
+> addToContext :: Ident -> ProcessDef -> Context -> Context
+> addToContext = M.insert
+
+> newContext :: Context
+> newContext = M.empty
+
+> type Process = (Context, ProcessDef) -- implement nondeterminism
+
+> normalise :: Process -> Process
+> normalise (c, Stop) = (c, NormalProc [] Stop)
+> normalise (c, (Prefix e p)) = (c, NormalProc [e] p)
+> normalise (c, (Ident s)) = case lookupProc c s of
+>                                Nothing -> error "Undefined ident"
+>                                Just p' -> normalise (c, p')
+> normalise (c, (Abs s p)) = normalise ((addToContext s p c), p)
+
+> canRun :: Process -> Event -> Bool
+> canRun p e = (\(c, NormalProc es _) -> elem e es) $ normalise p
+
+> runEvent :: Process -> Event -> Maybe Process
+> runEvent p e = flip ($) (normalise p) (\(c, NormalProc es p') ->
+>                    if elem e es then Just (c, p') else Nothing)
+
